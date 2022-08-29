@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd">
+    <bean parent="jobSchedulingBean">
+        <property name="jobDetail">
+            <bean class="org.springframework.scheduling.quartz.JobDetailBean">
+                <property name="name" value="WorkflowTasksCleanerJob" />
+                <property name="jobClass" value="org.jahia.community.workflowtaskscleaner.CleanBackgroundJob" />
+                <property name="group" value="Maintenance" />
+                <property name="jobDataAsMap"/>
+                <property name="description" value="Clean exited and completed workflow tasks" />
+            </bean>
+        </property>
+        <property name="trigger">
+            <bean class="org.quartz.CronTrigger">
+                <property name="name" value="WorkflowTasksCleanerJobTrigger"/>
+                <property name="cronExpression" value="${jahia.workflow.tasks.cleaner.job.cronExpression:0 30 2 * * ?}"/>
+            </bean>
+        </property>
+    </bean>
+</beans>
