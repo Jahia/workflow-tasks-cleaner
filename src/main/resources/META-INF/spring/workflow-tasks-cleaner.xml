@@ -8,7 +8,6 @@
                 <property name="name" value="WorkflowTasksCleanerJob" />
                 <property name="jobClass" value="org.jahia.community.workflowtaskscleaner.CleanBackgroundJob" />
                 <property name="group" value="Maintenance" />
-                <property name="jobDataAsMap"/>
                 <property name="description" value="Clean exited and completed workflow tasks" />
             </bean>
         </property>
