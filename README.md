@@ -19,3 +19,21 @@ This is a custom module to clean automatically exited or completed workflow task
 Name | Value | Description
  --- | --- | ---
 jahia.workflow.tasks.cleaner.job.cronExpression | 0 30 2 * * ? | Crontab expression for the job
+
+
+### Commands
+
+#### `workflow-cleaner:list`
+
+List all current workflow tasks with human-readable values for task states.
+
+
+#### `workflow-cleaner:task`
+
+List all current workflow tasks.
+
+**Options:**
+- `-id` (required): The task id.
+- `--fix`: Try to fix the task (reassign groups/users).
+- `--delete`: Delete the task.
+
