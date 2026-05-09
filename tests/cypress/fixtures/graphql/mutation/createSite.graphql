@@ -1,0 +1,17 @@
+mutation CreateSite($siteName: String!, $template: String!) {
+  jcr {
+    addNode(
+      parentPathOrId: "/sites"
+      name: $siteName
+      primaryNodeType: "jnt:virtualsite"
+      properties: [
+        {name: "j:templateName", value: $template}
+      ]
+    ) {
+      node {
+        uuid
+        path
+      }
+    }
+  }
+}

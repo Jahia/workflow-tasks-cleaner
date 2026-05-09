@@ -1,6 +1,13 @@
 {
-  "include": [
-    "node_modules/cypress",
-    "cypress/**/*.ts"
-  ]
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "lib": ["es6", "dom"],
+    "strict": false,
+    "noEmit": true,
+    "allowJs": true,
+    "skipLibCheck": true,
+    "types": ["cypress", "node"]
+  },
+  "include": ["**/*.ts"]
 }

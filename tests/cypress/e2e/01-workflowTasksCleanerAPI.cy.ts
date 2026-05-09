@@ -29,7 +29,7 @@ describe('Workflow Tasks Cleaner - GraphQL API', () => {
             cy.apollo({query: getConfig})
                 .its('data.workflowTasksCleanerConfig.cronExpression')
                 .should('be.a', 'string')
-                .and.not.be.empty;
+                .and('not.be.empty');
         });
     });
 

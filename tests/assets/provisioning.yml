@@ -8,4 +8,11 @@
   uninstallPreviousVersion: false
 - karafCommand: "log:log 'END - Install workflow-tasks-cleaner dependencies'"
 
+- karafCommand: "log:log 'START - Install site template for workflow data'"
+- installBundle:
+      - 'mvn:org.jahia.modules/templates-web-blue/LATEST'
+  autoStart: true
+  uninstallPreviousVersion: false
+- karafCommand: "log:log 'END - Install site template'"
+
 - karafCommand: "log:log 'END - workflow-tasks-cleaner provisioning'"
