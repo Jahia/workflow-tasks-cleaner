@@ -1,0 +1,8 @@
+query {
+    workflowTasksCleanerWorkflowList {
+        id
+        name
+        type
+        title
+    }
+}

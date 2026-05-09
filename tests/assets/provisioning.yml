@@ -1,0 +1,11 @@
+- karafCommand: "log:log 'START - workflow-tasks-cleaner provisioning'"
+
+- karafCommand: "log:log 'START - Install workflow-tasks-cleaner dependencies'"
+- installBundle:
+      - 'mvn:org.jahia.modules/graphql-dxm-provider/LATEST'
+      - 'mvn:org.jahia.modules/serverSettings/LATEST'
+  autoStart: true
+  uninstallPreviousVersion: false
+- karafCommand: "log:log 'END - Install workflow-tasks-cleaner dependencies'"
+
+- karafCommand: "log:log 'END - workflow-tasks-cleaner provisioning'"
