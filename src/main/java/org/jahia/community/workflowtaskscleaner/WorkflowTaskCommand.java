@@ -10,8 +10,9 @@ import org.apache.karaf.shell.support.table.Col;
 import org.apache.karaf.shell.support.table.ShellTable;
 import org.jahia.api.Constants;
 import org.jahia.api.usermanager.JahiaUserManagerService;
-import org.jahia.services.content.JCRNodeIteratorWrapper;
 import org.jahia.services.content.JCRNodeWrapper;
+
+import javax.jcr.NodeIterator;
 import org.jahia.services.content.JCRTemplate;
 import org.jahia.services.content.JCRValueWrapper;
 import org.jahia.services.workflow.WorkflowService;
@@ -30,11 +31,14 @@ import org.kie.internal.task.api.model.InternalPeopleAssignments;
 import org.kie.internal.task.api.model.InternalTask;
 
 import javax.jcr.RepositoryException;
+import javax.jcr.ValueFactory;
 import javax.jcr.query.Query;
+import javax.sql.DataSource;
 import java.lang.reflect.Field;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
@@ -107,14 +111,7 @@ public class WorkflowTaskCommand implements Action {
                 }
                 if (!toBeFixed && toBeDeleted) {
                     System.out.printf("Deleting task %d%n", taskId);
-                    DatabaseUtils.executeStatements(Arrays.asList(
-                            "DELETE FROM jbpm_people_assignm_pot_owners WHERE task_id = " + taskId,
-                            "DELETE FROM jbpm_people_assignments_bas WHERE task_id = " + taskId,
-                            "DELETE FROM jbpm_i18ntext WHERE task_subjects_id = " + taskId,
-                            "DELETE FROM jbpm_i18ntext WHERE task_names_id = " + taskId,
-                            "DELETE FROM jbpm_i18ntext WHERE task_descriptions_id = " + taskId,
-                            "DELETE FROM jbpm_task WHERE id = " + taskId
-                    ));
+                    deleteTask(taskId);
                 }
             } finally {
                 jbpmServicesPersistenceManager.endTransaction(true);
@@ -128,7 +125,10 @@ public class WorkflowTaskCommand implements Action {
     private void fixTask(Locale locale, Task taskById, JbpmServicesPersistenceManager jbpmServicesPersistenceManager) throws RepositoryException {
         jcrTemplate.doExecuteWithSystemSessionAsUser(userManagerService.lookupRootUser().getJahiaUser(), Constants.EDIT_WORKSPACE, locale, session -> {
             try {
-                JCRNodeIteratorWrapper nodes = session.getWorkspace().getQueryManager().createQuery("SELECT * FROM [jnt:workflowTask] WHERE [taskId] = '" + taskId + "'", Query.JCR_SQL2).execute().getNodes();
+                Query query = session.getWorkspace().getQueryManager().createQuery("SELECT * FROM [jnt:workflowTask] WHERE [taskId] = $taskId", Query.JCR_SQL2);
+                ValueFactory vf = session.getValueFactory();
+                query.bindValue("taskId", vf.createValue(taskId));
+                NodeIterator nodes = query.execute().getNodes();
                 while (nodes.hasNext()) {
                     JCRNodeWrapper node = (JCRNodeWrapper) nodes.nextNode();
                     System.out.println("Node: " + node.getPath());
@@ -163,6 +163,33 @@ public class WorkflowTaskCommand implements Action {
                 throw new RuntimeException(e);
             }
         });
+    }
+
+    private static void deleteTask(long taskId) throws SQLException {
+        DataSource ds = DatabaseUtils.getDatasource();
+        String[] sqls = {
+                "DELETE FROM jbpm_people_assignm_pot_owners WHERE task_id = ?",
+                "DELETE FROM jbpm_people_assignments_bas WHERE task_id = ?",
+                "DELETE FROM jbpm_i18ntext WHERE task_subjects_id = ?",
+                "DELETE FROM jbpm_i18ntext WHERE task_names_id = ?",
+                "DELETE FROM jbpm_i18ntext WHERE task_descriptions_id = ?",
+                "DELETE FROM jbpm_task WHERE id = ?"
+        };
+        try (Connection conn = ds.getConnection()) {
+            conn.setAutoCommit(false);
+            try {
+                for (String sql : sqls) {
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setLong(1, taskId);
+                        ps.executeUpdate();
+                    }
+                }
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            }
+        }
     }
 
 }

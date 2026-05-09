@@ -16,7 +16,6 @@ import org.jahia.services.workflow.WorkflowTask;
 import org.jahia.services.workflow.jbpm.JBPM6WorkflowProvider;
 import org.jahia.settings.SettingsBean;
 import org.jbpm.shared.services.api.JbpmServicesPersistenceManager;
-import org.jetbrains.annotations.NotNull;
 import org.kie.api.runtime.manager.RuntimeEngine;
 import org.kie.api.runtime.process.ProcessInstance;
 import org.kie.api.task.TaskService;
@@ -153,7 +152,7 @@ public class WorkflowListCommand implements Action {
             taskTable = getShellTableOfTaskSummary(tasksOwned, runtimeEngine);
             System.out.print("\n\nTasks owned by user " + root.getUserKey() + "\n\n");
             taskTable.print(System.out, true);
-            List tasksByVariousFields = taskService.getTasksByVariousFields(Collections.EMPTY_LIST, Collections.EMPTY_LIST, Collections.EMPTY_LIST, Collections.EMPTY_LIST, Collections.EMPTY_LIST, Collections.EMPTY_LIST, Arrays.asList(Status.Ready, Status.Created), true);
+            List<TaskSummary> tasksByVariousFields = taskService.getTasksByVariousFields(Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Collections.emptyList(), Arrays.asList(Status.Ready, Status.Created), true);
             taskTable = getShellTableOfTaskSummary(tasksByVariousFields, runtimeEngine);
             System.out.print("\n\nTasks by status\n\n");
             taskTable.print(System.out, true);
@@ -187,7 +186,7 @@ public class WorkflowListCommand implements Action {
         return null;
     }
 
-    private static @NotNull ShellTable getShellTableOfTaskSummary(List<TaskSummary> tasksOwned, RuntimeEngine runtimeEngine) {
+    private static ShellTable getShellTableOfTaskSummary(List<TaskSummary> tasksOwned, RuntimeEngine runtimeEngine) {
         ShellTable taskTable;
         taskTable = new ShellTable();
         taskTable.column(new Col("Name"));
@@ -217,7 +216,7 @@ public class WorkflowListCommand implements Action {
         return taskTable;
     }
 
-    private static @NotNull ShellTable getWorkflowInstancesTable() {
+    private static ShellTable getWorkflowInstancesTable() {
         ShellTable table = new ShellTable();
         table.column(new Col("Name"));
         table.column(new Col("Type"));

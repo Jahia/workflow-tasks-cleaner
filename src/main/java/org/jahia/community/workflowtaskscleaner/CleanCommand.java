@@ -66,7 +66,7 @@ public class CleanCommand implements Action {
                 final long start = System.currentTimeMillis();
                 DatabaseUtils.executeStatements(SQL_STMTS);
                 final long end = System.currentTimeMillis();
-                LOGGER.info(String.format("Finished to delete exited and completed workflow tasks in %s", DurationFormatUtils.formatDuration(end - start, HUMAN_READABLE_FORMAT, true)));
+                LOGGER.info("Finished to delete exited and completed workflow tasks in {}", DurationFormatUtils.formatDuration(end - start, HUMAN_READABLE_FORMAT, true));
             } catch (SQLException ex) {
                 LOGGER.error("Impossible to clean workflow tasks", ex);
             }
