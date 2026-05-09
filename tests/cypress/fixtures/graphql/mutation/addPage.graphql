@@ -1,9 +1,9 @@
-mutation CreateSite($siteName: String!, $template: String!) {
+mutation AddPage($parentPath: String!, $name: String!, $template: String!) {
   jcr {
     addNode(
-      parentPathOrId: "/sites"
-      name: $siteName
-      primaryNodeType: "jnt:virtualsite"
+      parentPathOrId: $parentPath
+      name: $name
+      primaryNodeType: "jnt:page"
       properties: [
         {name: "j:templateName", value: $template}
       ]

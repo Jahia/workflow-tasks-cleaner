@@ -6,22 +6,22 @@ describe('Workflow Tasks Cleaner - Execution UI', () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const runClean: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/runClean.graphql');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const createSite: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/createSite.graphql');
+    const addPage: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/addPage.graphql');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const publishNode: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/publishNode.graphql');
 
     before(() => {
         cy.login();
 
-        // Create a test site and publish its home page to trigger a workflow
+        // Add a page to digitall and publish it to trigger a workflow
         cy.apollo({
-            mutation: createSite,
-            variables: {siteName: 'testsite', template: 'templates-web-blue'}
+            mutation: addPage,
+            variables: {parentPath: '/sites/digitall/home', name: 'test-page', template: 'simple'}
         }).then(() => {
             cy.wait(2000);
             cy.apollo({
                 mutation: publishNode,
-                variables: {path: '/sites/testsite/home'}
+                variables: {path: '/sites/digitall/home/test-page'}
             });
         });
     });
@@ -74,13 +74,13 @@ describe('Workflow Tasks Cleaner - Execution UI', () => {
         cy.visit(adminPath);
         cy.contains('button', 'List workflows').click();
         cy.get('[class*="wtc_loading"]', {timeout: 10000}).should('not.exist');
-
+        
         // Either table with workflows or no-workflows message is shown
         cy.get('body').then($body => {
             if ($body.find('[class*="wtc_table"]').length > 0) {
                 cy.get('[class*="wtc_table"] tbody tr').should('have.length.at.least', 1);
             } else {
-                cy.contains('No workflows').should('be.visible');
+                cy.contains('No workflow instances found.').should('be.visible');
             }
         });
     });
