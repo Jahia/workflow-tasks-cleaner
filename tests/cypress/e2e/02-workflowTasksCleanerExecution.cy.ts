@@ -4,8 +4,6 @@ describe('Workflow Tasks Cleaner - Execution UI', () => {
     const adminPath = '/jahia/administration/workflowTasksCleanerExecution';
 
     // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const runClean: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/runClean.graphql');
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     const addPage: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/addPage.graphql');
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const publishNode: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/publishNode.graphql');
@@ -18,6 +16,7 @@ describe('Workflow Tasks Cleaner - Execution UI', () => {
             mutation: addPage,
             variables: {parentPath: '/sites/digitall/home', name: 'test-page', template: 'simple'}
         }).then(() => {
+            // eslint-disable-next-line cypress/no-unnecessary-waiting
             cy.wait(2000);
             cy.apollo({
                 mutation: publishNode,
@@ -74,7 +73,7 @@ describe('Workflow Tasks Cleaner - Execution UI', () => {
         cy.visit(adminPath);
         cy.contains('button', 'List workflows').click();
         cy.get('[class*="wtc_loading"]', {timeout: 10000}).should('not.exist');
-        
+
         // Either table with workflows or no-workflows message is shown
         cy.get('body').then($body => {
             if ($body.find('[class*="wtc_table"]').length > 0) {
