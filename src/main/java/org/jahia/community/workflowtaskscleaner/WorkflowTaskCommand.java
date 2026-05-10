@@ -11,8 +11,6 @@ import org.apache.karaf.shell.support.table.ShellTable;
 import org.jahia.api.Constants;
 import org.jahia.api.usermanager.JahiaUserManagerService;
 import org.jahia.services.content.JCRNodeWrapper;
-
-import javax.jcr.NodeIterator;
 import org.jahia.services.content.JCRTemplate;
 import org.jahia.services.content.JCRValueWrapper;
 import org.jahia.services.workflow.WorkflowService;
@@ -30,6 +28,7 @@ import org.kie.api.task.model.Task;
 import org.kie.internal.task.api.model.InternalPeopleAssignments;
 import org.kie.internal.task.api.model.InternalTask;
 
+import javax.jcr.NodeIterator;
 import javax.jcr.RepositoryException;
 import javax.jcr.ValueFactory;
 import javax.jcr.query.Query;
@@ -42,9 +41,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Command(scope = "workflow-cleaner", name = "task", description = "List all current workflow tasks")
 @Service
 public class WorkflowTaskCommand implements Action {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(WorkflowTaskCommand.class);
+    private static final String STATUS_LABEL = "Status";
 
     @Reference
     WorkflowService workflowService;
@@ -65,6 +70,7 @@ public class WorkflowTaskCommand implements Action {
     private boolean toBeDeleted;
 
     @Override
+    @SuppressWarnings({"java:S3011", "java:S106", "java:S2139"})
     public Object execute() throws RepositoryException {
         Locale locale = SettingsBean.getInstance().getDefaultLocale();
         try {
@@ -80,13 +86,13 @@ public class WorkflowTaskCommand implements Action {
             try {
                 TaskService taskService = runtimeEngine.getTaskService();
                 Task taskById = taskService.getTaskById(taskId);
-                System.out.println("Task: " + taskById.getTaskData().getStatus().name());
+                LOGGER.info("Task: {}", taskById.getTaskData().getStatus().name());
                 ShellTable taskTable = new ShellTable();
                 taskTable.column(new Col("ProcessInstanceId"));
                 taskTable.column(new Col("Id"));
                 taskTable.column(new Col("Type"));
                 taskTable.column(new Col("PotentialOwners"));
-                taskTable.column(new Col("Status"));
+                taskTable.column(new Col(STATUS_LABEL));
                 taskTable.column(new Col("CreatedOn"));
                 taskTable.addRow().addContent(
                         taskById.getTaskData().getProcessInstanceId(),
@@ -99,70 +105,83 @@ public class WorkflowTaskCommand implements Action {
                 taskTable.print(System.out);
                 boolean tryToReassignPeoples = false;
                 if (taskById.getPeopleAssignments().getPotentialOwners().isEmpty()) {
-                    System.out.println("No potential owners");
+                    LOGGER.info("No potential owners");
                     tryToReassignPeoples = true;
                 }
                 if (taskById.getPeopleAssignments().getBusinessAdministrators().isEmpty()) {
-                    System.out.println("No business administrators");
+                    LOGGER.info("No business administrators");
                     tryToReassignPeoples = true;
                 }
                 if (toBeFixed && tryToReassignPeoples) {
                     fixTask(locale, taskById, jbpmServicesPersistenceManager);
                 }
                 if (!toBeFixed && toBeDeleted) {
-                    System.out.printf("Deleting task %d%n", taskId);
+                    LOGGER.info("Deleting task {}", taskId);
                     deleteTask(taskId);
                 }
             } finally {
                 jbpmServicesPersistenceManager.endTransaction(true);
             }
-        } catch (IllegalAccessException | NoSuchFieldException | SQLException e) {
-            throw new RuntimeException(e);
+        } catch (IllegalAccessException | NoSuchFieldException | SQLException | RepositoryException e) {
+            Thread.currentThread().interrupt();
+            LOGGER.error("Failed to execute task command", e);
+            throw new IllegalStateException("Failed to execute task command", e);
         }
         return null;
     }
 
     private void fixTask(Locale locale, Task taskById, JbpmServicesPersistenceManager jbpmServicesPersistenceManager) throws RepositoryException {
         jcrTemplate.doExecuteWithSystemSessionAsUser(userManagerService.lookupRootUser().getJahiaUser(), Constants.EDIT_WORKSPACE, locale, session -> {
-            try {
-                Query query = session.getWorkspace().getQueryManager().createQuery("SELECT * FROM [jnt:workflowTask] WHERE [taskId] = $taskId", Query.JCR_SQL2);
-                ValueFactory vf = session.getValueFactory();
-                query.bindValue("taskId", vf.createValue(taskId));
-                NodeIterator nodes = query.execute().getNodes();
-                while (nodes.hasNext()) {
-                    JCRNodeWrapper node = (JCRNodeWrapper) nodes.nextNode();
-                    System.out.println("Node: " + node.getPath());
-                    System.out.println("TaskId: " + node.getProperty("taskId").getLong());
-                    JCRValueWrapper[] candidates = node.getProperty("candidates").getValues();
-                    System.out.println("Candidates = " + ShellUtil.getValueString(candidates));
-                    List<OrganizationalEntity> potentialOwners = new ArrayList<>();
-                    for (JCRValueWrapper candidate : candidates) {
-                        String candidateString = candidate.getString();
-                        if (candidateString.startsWith("/users")) {
-                            potentialOwners.add(new UserImpl(candidateString));
-                        } else {
-                            potentialOwners.add(new GroupImpl(candidateString));
-                        }
-                    }
-                    PeopleAssignments peopleAssignments = taskById.getPeopleAssignments();
-                    if (peopleAssignments instanceof InternalPeopleAssignments) {
-                        ((InternalPeopleAssignments) peopleAssignments).setPotentialOwners(potentialOwners);
-                    } else {
-                        throw new IllegalArgumentException("Unsupported PeopleAssignments implementation");
-                    }
-
-                    if (taskById instanceof InternalTask) {
-                        ((InternalTask) taskById).setPeopleAssignments(peopleAssignments);
-                        jbpmServicesPersistenceManager.persist(taskById);
-                    } else {
-                        throw new IllegalArgumentException("Unsupported Task implementation");
-                    }
-                }
-                return null;
-            } catch (RepositoryException e) {
-                throw new RuntimeException(e);
+            Query query = session.getWorkspace().getQueryManager().createQuery("SELECT * FROM [jnt:workflowTask] WHERE [taskId] = $taskId", Query.JCR_SQL2);
+            ValueFactory vf = session.getValueFactory();
+            query.bindValue("taskId", vf.createValue(taskId));
+            NodeIterator nodes = query.execute().getNodes();
+            while (nodes.hasNext()) {
+                JCRNodeWrapper node = (JCRNodeWrapper) nodes.nextNode();
+                LOGGER.info("Node: {}", node.getPath());
+                LOGGER.info("TaskId: {}", node.getProperty("taskId").getLong());
+                JCRValueWrapper[] candidates = node.getProperty("candidates").getValues();
+                LOGGER.info("Candidates = {}", ShellUtil.getValueString(candidates));
+                List<OrganizationalEntity> potentialOwners = buildPotentialOwners(candidates);
+                updateTaskAssignments(taskById, potentialOwners, jbpmServicesPersistenceManager);
             }
+            return null;
         });
+    }
+
+    @SuppressWarnings("java:S2139")
+    private List<OrganizationalEntity> buildPotentialOwners(JCRValueWrapper[] candidates) {
+        List<OrganizationalEntity> potentialOwners = new ArrayList<>();
+        try {
+            for (JCRValueWrapper candidate : candidates) {
+                String candidateString = candidate.getString();
+                if (candidateString.startsWith("/users")) {
+                    potentialOwners.add(new UserImpl(candidateString));
+                } else {
+                    potentialOwners.add(new GroupImpl(candidateString));
+                }
+            }
+        } catch (RepositoryException e) {
+            LOGGER.error("Failed to build potential owners", e);
+            throw new IllegalStateException("Failed to build potential owners", e);
+        }
+        return potentialOwners;
+    }
+
+    private void updateTaskAssignments(Task taskById, List<OrganizationalEntity> potentialOwners, JbpmServicesPersistenceManager jbpmServicesPersistenceManager) {
+        PeopleAssignments peopleAssignments = taskById.getPeopleAssignments();
+        if (peopleAssignments instanceof InternalPeopleAssignments) {
+            ((InternalPeopleAssignments) peopleAssignments).setPotentialOwners(potentialOwners);
+        } else {
+            throw new IllegalArgumentException("Unsupported PeopleAssignments implementation");
+        }
+
+        if (taskById instanceof InternalTask) {
+            ((InternalTask) taskById).setPeopleAssignments(peopleAssignments);
+            jbpmServicesPersistenceManager.persist(taskById);
+        } else {
+            throw new IllegalArgumentException("Unsupported Task implementation");
+        }
     }
 
     private static void deleteTask(long taskId) throws SQLException {
@@ -179,16 +198,20 @@ public class WorkflowTaskCommand implements Action {
             conn.setAutoCommit(false);
             try {
                 for (String sql : sqls) {
-                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
-                        ps.setLong(1, taskId);
-                        ps.executeUpdate();
-                    }
+                    executeDelete(conn, sql, taskId);
                 }
                 conn.commit();
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
             }
+        }
+    }
+
+    private static void executeDelete(Connection conn, String sql, long taskId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, taskId);
+            ps.executeUpdate();
         }
     }
 
