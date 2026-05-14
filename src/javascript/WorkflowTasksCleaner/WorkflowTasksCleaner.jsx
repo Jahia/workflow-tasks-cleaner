@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {useLazyQuery, useMutation} from '@apollo/client';
 import {useTranslation} from 'react-i18next';
 import {Button, Loader, Typography, Table} from '@jahia/moonstone';
@@ -9,6 +9,11 @@ export const WorkflowTasksCleanerAdmin = () => {
     const {t} = useTranslation('workflow-tasks-cleaner');
     const [workflows, setWorkflows] = useState(null);
     const [runStatus, setRunStatus] = useState(null);
+    const liveRef = useRef(null);
+
+    useEffect(() => {
+        document.title = `${t('label.title')} — Jahia Administration`;
+    }, [t]);
 
     const [loadWorkflows, {loading: loadingWorkflows}] = useLazyQuery(WORKFLOW_LIST, {
         fetchPolicy: 'network-only',
@@ -36,10 +41,30 @@ export const WorkflowTasksCleanerAdmin = () => {
         } catch {
             setRunStatus('error');
         }
+
+        setTimeout(() => liveRef.current?.focus(), 50);
     }, [runClean]);
+
+    const runLiveMsg = runStatus === 'success' ? t('label.cleanSuccess') :
+        runStatus === 'error' ? t('label.error') : '';
+
+    const listLiveMsg = loadingWorkflows ? t('label.loading') :
+        (workflows !== null && workflows.length === 0) ? t('label.noWorkflows') : '';
 
     return (
         <div className={styles.wtc_container}>
+            {/* Persistent live region for run-clean status — always in DOM so AT registers it */}
+            <div
+                ref={liveRef}
+                tabIndex={-1}
+                role={runStatus === 'error' ? 'alert' : 'status'}
+                aria-live={runStatus === 'error' ? 'assertive' : 'polite'}
+                aria-atomic="true"
+                className={styles.wtc_sr_only}
+            >
+                {runLiveMsg}
+            </div>
+
             <div className={styles.wtc_header}>
                 <h2>{t('label.title')}</h2>
             </div>
@@ -49,13 +74,13 @@ export const WorkflowTasksCleanerAdmin = () => {
             </div>
 
             {runStatus === 'success' && (
-                <div className={`${styles.wtc_alert} ${styles['wtc_alert--success']}`}>
-                    {t('label.cleanSuccess')}
+                <div aria-hidden="true" className={`${styles.wtc_alert} ${styles['wtc_alert--success']}`}>
+                    <span className={styles.wtc_alertIcon}>✓</span> {t('label.cleanSuccess')}
                 </div>
             )}
             {runStatus === 'error' && (
-                <div className={`${styles.wtc_alert} ${styles['wtc_alert--error']}`}>
-                    {t('label.error')}
+                <div aria-hidden="true" className={`${styles.wtc_alert} ${styles['wtc_alert--error']}`}>
+                    <span className={styles.wtc_alertIcon}>✕</span> {t('label.error')}
                 </div>
             )}
 
@@ -84,8 +109,13 @@ export const WorkflowTasksCleanerAdmin = () => {
                     />
                 </div>
 
+                {/* Persistent live region for list-loading status */}
+                <div role="status" aria-live="polite" aria-atomic="true" className={styles.wtc_sr_only}>
+                    {listLiveMsg}
+                </div>
+
                 {loadingWorkflows && (
-                    <div className={styles.wtc_loading}>
+                    <div className={styles.wtc_loading} aria-hidden="true">
                         <Loader size="big"/>
                     </div>
                 )}
@@ -96,13 +126,13 @@ export const WorkflowTasksCleanerAdmin = () => {
 
                 {workflows && workflows.length > 0 && (
                     <div className={styles.wtc_table}>
-                        <Table>
+                        <Table aria-label={t('label.workflowListTitle')}>
                             <thead>
                                 <tr>
-                                    <th>{t('label.tableId')}</th>
-                                    <th>{t('label.tableName')}</th>
-                                    <th>{t('label.tableType')}</th>
-                                    <th>{t('label.tableTitle')}</th>
+                                    <th scope="col">{t('label.tableId')}</th>
+                                    <th scope="col">{t('label.tableName')}</th>
+                                    <th scope="col">{t('label.tableType')}</th>
+                                    <th scope="col">{t('label.tableTitle')}</th>
                                 </tr>
                             </thead>
                             <tbody>
