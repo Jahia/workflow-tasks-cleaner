@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useState} from 'react';
 import {useMutation, useQuery} from '@apollo/client';
 import {useTranslation} from 'react-i18next';
 import {Button, Input, Tooltip, Typography} from '@jahia/moonstone';
@@ -13,10 +13,9 @@ export const SchedulerConfig = () => {
     const {t} = useTranslation('workflow-tasks-cleaner');
     const [form, setForm] = useState(DEFAULT_CONFIG);
     const [saveStatus, setSaveStatus] = useState(null);
-    const liveRef = useRef(null);
 
     useEffect(() => {
-        document.title = `${t('label.menu_configuration')} — Jahia Administration`;
+        document.title = `${t('label.scheduler.configTitle')} — Jahia Administration`;
     }, [t]);
 
     const {data, loading} = useQuery(GET_CONFIG, {fetchPolicy: 'network-only'});
@@ -47,29 +46,20 @@ export const SchedulerConfig = () => {
         } catch {
             setSaveStatus('error');
         }
-
-        setTimeout(() => liveRef.current?.focus(), 50);
     };
-
-    const saveLiveMsg = saveStatus === 'success' ? t('label.scheduler.saved') :
-        saveStatus === 'error' ? t('label.error') : '';
 
     return (
         <div className={styles.wtc_container}>
-            {/* Persistent live region for save status — always in DOM so AT registers it */}
-            <div
-                ref={liveRef}
-                tabIndex={-1}
-                role={saveStatus === 'error' ? 'alert' : 'status'}
-                aria-live={saveStatus === 'error' ? 'assertive' : 'polite'}
-                aria-atomic="true"
-                className={styles.wtc_sr_only}
-            >
-                {saveLiveMsg}
+            {/* Two fixed-role live regions — AT caches role at registration; dynamic mutation is ignored */}
+            <div role="status" aria-live="polite" aria-atomic="true" className={styles.wtc_sr_only}>
+                {saveStatus === 'success' ? t('label.scheduler.saved') : ''}
+            </div>
+            <div role="alert" aria-live="assertive" aria-atomic="true" className={styles.wtc_sr_only}>
+                {saveStatus === 'error' ? t('label.error') : ''}
             </div>
 
             <div className={styles.wtc_header}>
-                <h2>{t('label.menu_configuration')}</h2>
+                <h2>{t('label.scheduler.configTitle')}</h2>
             </div>
 
             <div className={styles.wtc_description}>
@@ -106,7 +96,10 @@ export const SchedulerConfig = () => {
                     </div>
                     <Input
                         id="wtc-cron"
-                        aria-describedby="wtc-cron-desc"
+                        aria-describedby={`wtc-cron-desc${saveStatus === 'error' ? ' wtc-cron-err' : ''}`}
+                        aria-invalid={saveStatus === 'error' ? 'true' : undefined}
+                        aria-required="true"
+                        required
                         className={styles.wtc_inputWide}
                         value={loading ? '' : form.cronExpression}
                         isDisabled={loading}
@@ -115,6 +108,9 @@ export const SchedulerConfig = () => {
                     />
                     <span id="wtc-cron-desc" className={styles.wtc_sr_only}>
                         {t('label.scheduler.cronExpressionTooltip')}
+                    </span>
+                    <span id="wtc-cron-err" className={styles.wtc_sr_only}>
+                        {saveStatus === 'error' ? t('label.error') : ''}
                     </span>
                 </div>
             </div>

@@ -17,6 +17,12 @@
   padding: var(--spacing-large, 24px);
 }
 
+.wtc_container *:focus-visible {
+  outline: 2px solid var(--color-accent, #00a0e3);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 .wtc_header h2 {
   margin: 0;
   padding: 0;
@@ -66,7 +72,7 @@
   margin-bottom: var(--spacing-large, 24px);
   padding: var(--spacing-medium, 16px);
   background: var(--color-light, #fdfdfd);
-  border: 1px solid var(--color-gray_light, #dadada);
+  border: 1px solid #767676; /* was #dadada — 1.47:1 fails SC 1.4.11; #767676 = 4.54:1 on white */
   border-radius: var(--radius, 4px);
 }
 
@@ -96,15 +102,14 @@
 .wtc_table td {
   padding: var(--spacing-small, 8px);
   text-align: left;
-  border-bottom: 1px solid var(--color-gray_light, #dadada);
+  border-bottom: 1px solid #767676; /* was #dadada — 1.47:1 fails SC 1.4.11; #767676 = 4.54:1 on white */
 }
 
 .wtc_table th {
   font-weight: 600;
-  /* #5c6370 on #fdfdfd ≈ 5.5:1 — replaces #7a7f88 which was ~4.1:1 (fails at 11px) */
-  color: var(--color-gray, #5c6370);
+  color: #595959; /* 7.0:1 on white — SC 1.4.3 AA+AAA; hardcoded, not theme-dependent */
   text-transform: uppercase;
-  font-size: 0.6875rem;
+  font-size: 0.75rem; /* was 0.6875rem (11px) — increased for legibility (CRIT-01) */
 }
 
 .wtc_actions {
@@ -129,7 +134,7 @@
   gap: 4px;
 
   label {
-    font-size: 14px;
+    font-size: 0.875rem; /* was 14px — converted to rem for SC 1.4.4 browser zoom support */
     font-weight: 600;
     color: var(--color-dark, #131c21);
   }
@@ -137,8 +142,7 @@
 
 .wtc_tooltip {
   cursor: help;
-  /* #5c6370 on #fff ≈ 5.5:1 — replaces #7a7f88 which was ~4.1:1 (fails at 12px) */
-  color: var(--color-gray, #5c6370);
+  color: #595959; /* 7.0:1 on white — SC 1.4.3 AA+AAA; hardcoded, not theme-dependent */
   font-size: 0.75rem;
   background: none;
   border: none;
@@ -159,6 +163,5 @@
 
 .wtc_restartHint {
   margin-bottom: var(--spacing-medium, 16px);
-  /* #5c6370 on #fff ≈ 5.5:1 — replaces #7a7f88 which was ~4.1:1 */
-  color: var(--color-gray, #5c6370);
+  color: #595959; /* 7.0:1 on white — SC 1.4.3 AA+AAA; hardcoded, not theme-dependent */
 }
