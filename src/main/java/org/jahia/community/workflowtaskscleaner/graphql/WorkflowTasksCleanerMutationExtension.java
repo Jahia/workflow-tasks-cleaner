@@ -10,6 +10,7 @@ import org.jahia.modules.graphql.provider.dxm.security.GraphQLRequiresPermission
 import org.jahia.osgi.BundleUtils;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
+import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,11 +36,10 @@ public class WorkflowTasksCleanerMutationExtension {
     @GraphQLDescription("Triggers the cleanup of exited/completed workflow tasks asynchronously. Returns false if a clean is already running.")
     @GraphQLRequiresPermission("admin")
     public static Boolean runClean() {
-        if (IS_RUNNING.get()) {
+        if (!IS_RUNNING.compareAndSet(false, true)) {
             LOGGER.info("Workflow tasks cleaner run requested but already running");
             return Boolean.FALSE;
         }
-        IS_RUNNING.set(true);
         new Thread(() -> {
             try {
                 CleanCommand.deleteTasks();
@@ -61,6 +61,10 @@ public class WorkflowTasksCleanerMutationExtension {
             @GraphQLDescription("Quartz cron expression for the scheduled cleanup")
             String cronExpression) {
 
+        if (cronExpression == null || cronExpression.isEmpty() || !CronExpression.isValidExpression(cronExpression)) {
+            LOGGER.warn("Invalid cron expression provided, configuration not updated");
+            return Boolean.FALSE;
+        }
         try {
             ConfigurationAdmin configAdmin = BundleUtils.getOsgiService(ConfigurationAdmin.class, null);
             if (configAdmin == null) {
@@ -71,9 +75,7 @@ public class WorkflowTasksCleanerMutationExtension {
             if (props == null) {
                 props = new Hashtable<>();
             }
-            if (cronExpression != null && !cronExpression.isEmpty()) {
-                props.put("cronExpression", cronExpression);
-            }
+            props.put("cronExpression", cronExpression);
             config.update(props);
             return Boolean.TRUE;
         } catch (IOException e) {
