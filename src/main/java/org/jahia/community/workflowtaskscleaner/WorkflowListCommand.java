@@ -103,16 +103,16 @@ public class WorkflowListCommand implements Action {
             jbpmServicesPersistenceManagerField.setAccessible(true);
             JbpmServicesPersistenceManager jbpmServicesPersistenceManager = (JbpmServicesPersistenceManager) jbpmServicesPersistenceManagerField.get(jBPM);
             jbpmServicesPersistenceManager.beginTransaction();
-            
-            List<String> instanceIds = listAllWorkflowInstances(runtimeEngine, locale);
-            listWorkflowInstancesForUser(runtimeEngine, locale);
-            listTasksForUser(runtimeEngine, locale);
-            listTasksByStatus(runtimeEngine, locale);
-            listAllTasksByProcess(runtimeEngine, instanceIds);
-            
-            jbpmServicesPersistenceManager.endTransaction(false);
+            try {
+                List<String> instanceIds = listAllWorkflowInstances(runtimeEngine, locale);
+                listWorkflowInstancesForUser(runtimeEngine, locale);
+                listTasksForUser(runtimeEngine, locale);
+                listTasksByStatus(runtimeEngine, locale);
+                listAllTasksByProcess(runtimeEngine, instanceIds);
+            } finally {
+                jbpmServicesPersistenceManager.endTransaction(false);
+            }
         } catch (IllegalAccessException | NoSuchFieldException e) {
-            Thread.currentThread().interrupt();
             LOGGER.error("Failed to access workflow fields", e);
             throw new IllegalStateException("Failed to access workflow fields", e);
         }

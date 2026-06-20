@@ -13,6 +13,7 @@ import org.jahia.services.workflow.WorkflowService;
 import org.jahia.settings.SettingsBean;
 import org.osgi.service.cm.Configuration;
 import org.osgi.service.cm.ConfigurationAdmin;
+import org.jahia.community.workflowtaskscleaner.WorkflowTasksCleanerScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,7 +39,7 @@ public class WorkflowTasksCleanerQueryExtension {
     public static GqlConfig config() {
         ConfigurationAdmin configAdmin = BundleUtils.getOsgiService(ConfigurationAdmin.class, null);
         if (configAdmin == null) {
-            return new GqlConfig("0 30 2 * * ?");
+            return new GqlConfig(WorkflowTasksCleanerScheduler.DEFAULT_CRON_EXPRESSION);
         }
         try {
             Configuration config = configAdmin.getConfiguration(CONFIG_PID, null);
@@ -48,10 +49,10 @@ public class WorkflowTasksCleanerQueryExtension {
                     return new GqlConfig(cron.toString());
                 }
             }
-        } catch (Exception e) {
+        } catch (java.io.IOException e) {
             LOGGER.error("Failed to read configuration", e);
         }
-        return new GqlConfig("0 30 2 * * ?");
+        return new GqlConfig(WorkflowTasksCleanerScheduler.DEFAULT_CRON_EXPRESSION);
     }
 
     @GraphQLField
