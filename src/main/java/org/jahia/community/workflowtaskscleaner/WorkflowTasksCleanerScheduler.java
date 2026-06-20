@@ -25,6 +25,7 @@ public class WorkflowTasksCleanerScheduler {
     private static final String JOB_NAME = "WorkflowTasksCleanerJob";
     private static final String TRIGGER_NAME = "WorkflowTasksCleanerJobTrigger";
     private static final String GROUP = "Maintenance";
+    public static final String DEFAULT_CRON_EXPRESSION = "0 30 2 * * ?";
 
     @Reference
     private Scheduler scheduler;
@@ -82,6 +83,6 @@ public class WorkflowTasksCleanerScheduler {
     @interface Config {
 
         @AttributeDefinition(name = "Cron expression", description = "Cron expression for the cleanup job")
-        String cronExpression() default "0 30 2 * * ?";
+        String cronExpression() default DEFAULT_CRON_EXPRESSION;
     }
 }

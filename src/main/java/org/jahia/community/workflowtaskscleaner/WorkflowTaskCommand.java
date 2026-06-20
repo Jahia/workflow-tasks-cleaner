@@ -123,7 +123,6 @@ public class WorkflowTaskCommand implements Action {
                 jbpmServicesPersistenceManager.endTransaction(true);
             }
         } catch (IllegalAccessException | NoSuchFieldException | SQLException | RepositoryException e) {
-            Thread.currentThread().interrupt();
             LOGGER.error("Failed to execute task command", e);
             throw new IllegalStateException("Failed to execute task command", e);
         }

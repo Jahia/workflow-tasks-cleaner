@@ -73,17 +73,28 @@ public class CleanCommand implements Action {
 			    	JahiaUser user = session.getUser();
 			        List<WorkflowTask> tasks = WorkflowService.getInstance().getTasksForUser(user, Locale.ENGLISH);
 			        for (WorkflowTask task : tasks) {
-			            processWorkflowTask(task, session);
+			                try {
+			                    processWorkflowTask(task, session);
+			                } catch (Exception e) {
+			                    LOGGER.warn("Skipping task {}: processing failed", task.getId(), e);
+			                }
 			        }
 					return null;
 				}
 			});
     }
 
+    @SuppressWarnings("unchecked")
     private static void processWorkflowTask(WorkflowTask task, JCRSessionWrapper session) throws RepositoryException {
         Workflow w = WorkflowService.getInstance().getWorkflow(task.getProvider(), task.getProcessId(), Locale.ENGLISH);
-        List<String> nodeIds = (List<String>) w.getVariables().get("nodeIds");
-        if (nodeIds != null && !hasExistingNodes(nodeIds, session)) {
+        Object raw = w.getVariables().get("nodeIds");
+        if (!(raw instanceof List)) {
+            LOGGER.warn("Skipping workflow {}: nodeIds missing or not a List", w.getId());
+            return;
+        }
+        @SuppressWarnings("unchecked")
+        List<String> nodeIds = (List<String>) raw;
+        if (!hasExistingNodes(nodeIds, session)) {
             WorkflowService.getInstance().abortProcess(w.getId(), w.getProvider());
         }
     }

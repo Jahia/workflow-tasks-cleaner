@@ -54,7 +54,7 @@ public class WorkflowTasksCleanerMutationExtension {
 
     @GraphQLField
     @GraphQLName("workflowTasksCleanerSaveConfig")
-    @GraphQLDescription("Saves the workflow tasks cleaner scheduled job configuration. A module restart is required for schedule changes to take effect.")
+    @GraphQLDescription("Saves the workflow tasks cleaner scheduled job configuration. The job is rescheduled automatically when the configuration is updated.")
     @GraphQLRequiresPermission("admin")
     public static Boolean saveConfig(
             @GraphQLName("cronExpression")
