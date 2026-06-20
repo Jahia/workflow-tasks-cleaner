@@ -55,7 +55,7 @@ describe('Workflow Tasks Cleaner - Configuration UI', () => {
         cy.get('[class*="wtc_alert--success"]', {timeout: 10000}).should('be.visible');
 
         cy.apollo({query: getConfig})
-            .its('data.workflowTasksCleanerConfig.cronExpression')
+            .its('data.workflowTasksCleaner.config.cronExpression')
             .should('eq', cron);
     });
 

@@ -1,3 +1,5 @@
 mutation WorkflowTasksCleanerSaveConfig($cronExpression: String) {
-    workflowTasksCleanerSaveConfig(cronExpression: $cronExpression)
+    workflowTasksCleaner {
+        saveConfig(cronExpression: $cronExpression)
+    }
 }

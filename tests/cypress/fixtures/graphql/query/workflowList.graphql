@@ -1,8 +1,10 @@
 query {
-    workflowTasksCleanerWorkflowList {
-        id
-        name
-        type
-        title
+    workflowTasksCleaner {
+        workflowList {
+            id
+            name
+            type
+            title
+        }
     }
 }

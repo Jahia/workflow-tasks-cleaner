@@ -17,7 +17,7 @@ export const WorkflowTasksCleanerAdmin = () => {
     const [loadWorkflows, {loading: loadingWorkflows}] = useLazyQuery(WORKFLOW_LIST, {
         fetchPolicy: 'network-only',
         onCompleted: data => {
-            setWorkflows(data?.workflowTasksCleanerWorkflowList || []);
+            setWorkflows(data?.workflowTasksCleaner?.workflowList || []);
         }
     });
 
@@ -32,7 +32,7 @@ export const WorkflowTasksCleanerAdmin = () => {
         setRunStatus(null);
         try {
             const result = await runClean();
-            if (result.data?.workflowTasksCleanerRunClean === true) {
+            if (result.data?.workflowTasksCleaner?.runClean === true) {
                 setRunStatus('success');
             } else {
                 setRunStatus('error');
