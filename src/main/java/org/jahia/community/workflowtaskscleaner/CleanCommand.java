@@ -75,7 +75,7 @@ public class CleanCommand implements Action {
 			        for (WorkflowTask task : tasks) {
 			                try {
 			                    processWorkflowTask(task, session);
-			                } catch (Exception e) {
+			                } catch (RuntimeException e) { // skip one bad task; a checked RepositoryException (dead session) propagates to abort the batch
 			                    LOGGER.warn("Skipping task {}: processing failed", task.getId(), e);
 			                }
 			        }
@@ -84,7 +84,6 @@ public class CleanCommand implements Action {
 			});
     }
 
-    @SuppressWarnings("unchecked")
     private static void processWorkflowTask(WorkflowTask task, JCRSessionWrapper session) throws RepositoryException {
         Workflow w = WorkflowService.getInstance().getWorkflow(task.getProvider(), task.getProcessId(), Locale.ENGLISH);
         Object raw = w.getVariables().get("nodeIds");
