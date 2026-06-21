@@ -19,7 +19,7 @@ describe('Workflow Tasks Cleaner - GraphQL API', () => {
     describe('workflowTasksCleanerConfig', () => {
         it('returns all config fields', () => {
             cy.apollo({query: getConfig})
-                .its('data.workflowTasksCleanerConfig')
+                .its('data.workflowTasksCleaner.config')
                 .should(config => {
                     expect(config).to.have.property('cronExpression');
                 });
@@ -27,7 +27,7 @@ describe('Workflow Tasks Cleaner - GraphQL API', () => {
 
         it('returns cronExpression as a non-empty string', () => {
             cy.apollo({query: getConfig})
-                .its('data.workflowTasksCleanerConfig.cronExpression')
+                .its('data.workflowTasksCleaner.config.cronExpression')
                 .should('be.a', 'string')
                 .and('not.be.empty');
         });
@@ -42,11 +42,11 @@ describe('Workflow Tasks Cleaner - GraphQL API', () => {
                 mutation: saveConfig,
                 variables: {cronExpression: cron}
             })
-                .its('data.workflowTasksCleanerSaveConfig')
+                .its('data.workflowTasksCleaner.saveConfig')
                 .should('eq', true);
 
             cy.apollo({query: getConfig})
-                .its('data.workflowTasksCleanerConfig.cronExpression')
+                .its('data.workflowTasksCleaner.config.cronExpression')
                 .should('eq', cron);
         });
 
@@ -55,7 +55,7 @@ describe('Workflow Tasks Cleaner - GraphQL API', () => {
                 mutation: saveConfig,
                 variables: {cronExpression: '0 30 2 * * ?'}
             })
-                .its('data.workflowTasksCleanerSaveConfig')
+                .its('data.workflowTasksCleaner.saveConfig')
                 .should('eq', true);
         });
     });
@@ -65,7 +65,7 @@ describe('Workflow Tasks Cleaner - GraphQL API', () => {
     describe('workflowTasksCleanerRunClean', () => {
         it('triggers cleanup and returns true', () => {
             cy.apollo({mutation: runClean})
-                .its('data.workflowTasksCleanerRunClean')
+                .its('data.workflowTasksCleaner.runClean')
                 .should('eq', true);
         });
     });
@@ -75,13 +75,13 @@ describe('Workflow Tasks Cleaner - GraphQL API', () => {
     describe('workflowTasksCleanerWorkflowList', () => {
         it('returns a list (may be empty)', () => {
             cy.apollo({query: workflowList})
-                .its('data.workflowTasksCleanerWorkflowList')
+                .its('data.workflowTasksCleaner.workflowList')
                 .should('be.an', 'array');
         });
 
         it('returns workflow objects with expected fields', () => {
             cy.apollo({query: workflowList})
-                .its('data.workflowTasksCleanerWorkflowList')
+                .its('data.workflowTasksCleaner.workflowList')
                 .should(wfs => {
                     if (wfs.length > 0) {
                         expect(wfs[0]).to.have.property('id');

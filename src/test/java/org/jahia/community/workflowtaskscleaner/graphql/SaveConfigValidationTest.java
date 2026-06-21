@@ -6,7 +6,7 @@ import org.quartz.CronExpression;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for the cron-validation branch of {@link WorkflowTasksCleanerMutationExtension#saveConfig(String)}.
+ * Tests for the cron-validation branch of {@link WorkflowTasksCleanerMutation#saveConfig(String)}.
  *
  * For invalid input the guard returns {@code Boolean.FALSE} BEFORE any OSGi service lookup, so the
  * real method can be exercised directly with no mocking and no OSGi runtime. For valid input the
@@ -18,28 +18,28 @@ public class SaveConfigValidationTest {
 
     @Test
     public void saveConfig_returnsFalse_whenCronExpressionIsNull() {
-        assertThat(WorkflowTasksCleanerMutationExtension.saveConfig(null)).isFalse();
+        assertThat(new WorkflowTasksCleanerMutation().saveConfig(null)).isFalse();
     }
 
     @Test
     public void saveConfig_returnsFalse_whenCronExpressionIsEmpty() {
-        assertThat(WorkflowTasksCleanerMutationExtension.saveConfig("")).isFalse();
+        assertThat(new WorkflowTasksCleanerMutation().saveConfig("")).isFalse();
     }
 
     @Test
     public void saveConfig_returnsFalse_whenCronExpressionIsNotACron() {
-        assertThat(WorkflowTasksCleanerMutationExtension.saveConfig("not a cron")).isFalse();
+        assertThat(new WorkflowTasksCleanerMutation().saveConfig("not a cron")).isFalse();
     }
 
     @Test
     public void saveConfig_returnsFalse_whenCronExpressionIsArbitraryText() {
-        assertThat(WorkflowTasksCleanerMutationExtension.saveConfig("every monday at noon")).isFalse();
+        assertThat(new WorkflowTasksCleanerMutation().saveConfig("every monday at noon")).isFalse();
     }
 
     @Test
     public void saveConfig_returnsFalse_whenCronHasTooFewFields() {
         // Quartz requires 6 or 7 fields; 5 fields is invalid.
-        assertThat(WorkflowTasksCleanerMutationExtension.saveConfig("0 30 2 * *")).isFalse();
+        assertThat(new WorkflowTasksCleanerMutation().saveConfig("0 30 2 * *")).isFalse();
     }
 
     @Test

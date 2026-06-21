@@ -2,31 +2,39 @@ import {gql} from '@apollo/client';
 
 export const GET_CONFIG = gql`
     query WorkflowTasksCleanerConfig {
-        workflowTasksCleanerConfig {
-            cronExpression
+        workflowTasksCleaner {
+            config {
+                cronExpression
+            }
         }
     }
 `;
 
 export const SAVE_CONFIG = gql`
     mutation WorkflowTasksCleanerSaveConfig($cronExpression: String) {
-        workflowTasksCleanerSaveConfig(cronExpression: $cronExpression)
+        workflowTasksCleaner {
+            saveConfig(cronExpression: $cronExpression)
+        }
     }
 `;
 
 export const RUN_CLEAN = gql`
     mutation WorkflowTasksCleanerRunClean {
-        workflowTasksCleanerRunClean
+        workflowTasksCleaner {
+            runClean
+        }
     }
 `;
 
 export const WORKFLOW_LIST = gql`
     query WorkflowTasksCleanerWorkflowList {
-        workflowTasksCleanerWorkflowList {
-            id
-            name
-            type
-            title
+        workflowTasksCleaner {
+            workflowList {
+                id
+                name
+                type
+                title
+            }
         }
     }
 `;

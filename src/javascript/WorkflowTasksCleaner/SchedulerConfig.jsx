@@ -21,9 +21,9 @@ export const SchedulerConfig = () => {
     const {data, loading} = useQuery(GET_CONFIG, {fetchPolicy: 'network-only'});
 
     useEffect(() => {
-        if (data?.workflowTasksCleanerConfig) {
+        if (data?.workflowTasksCleaner?.config) {
             setForm({
-                cronExpression: data.workflowTasksCleanerConfig.cronExpression
+                cronExpression: data.workflowTasksCleaner.config.cronExpression
             });
         }
     }, [data]);
@@ -42,7 +42,7 @@ export const SchedulerConfig = () => {
                     cronExpression: form.cronExpression
                 }
             });
-            setSaveStatus(result.data?.workflowTasksCleanerSaveConfig === true ? 'success' : 'error');
+            setSaveStatus(result.data?.workflowTasksCleaner?.saveConfig === true ? 'success' : 'error');
         } catch {
             setSaveStatus('error');
         }
