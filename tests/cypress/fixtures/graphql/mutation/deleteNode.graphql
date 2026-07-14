@@ -1,0 +1,7 @@
+mutation DeleteNode($pathOrId: String!) {
+  jcr {
+    mutateNode(pathOrId: $pathOrId) {
+      delete
+    }
+  }
+}

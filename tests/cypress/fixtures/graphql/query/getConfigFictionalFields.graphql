@@ -1,0 +1,14 @@
+# S22 / D1 negative fixture: these counter fields are DOCUMENTED but DO NOT EXIST on
+# WorkflowTasksCleanerConfig (only cronExpression is defined — see GqlConfig.java).
+# Executing this query MUST fail GraphQL schema validation.
+query {
+    workflowTasksCleaner {
+        config {
+            cronExpression
+            isRunning
+            tasksScanned
+            tasksDeleted
+            tasksFixed
+        }
+    }
+}
