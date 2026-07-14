@@ -27,26 +27,29 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * S13 (G1 / U2, D5) — SAFETY HEADLINE, CHARACTERIZATION.
+ * S13 (G1 / U2) — SAFETY HEADLINE, now proving the <b>Stage-7 fix</b> (previously a characterization
+ * of the bug). Ghost-cleanup abort is guarded by TWO independent safeguards, exercised against the
+ * extracted {@link GhostWorkflowCleaner} collaborator (the Stage-4 recommendation to de-brittle S13):
  *
- * <p>The ghost-cleanup phase aborts a workflow whenever the {@code nodeIds} it references no longer
- * resolve, with <b>NO status gate at all</b> — the code never reads the workflow status
- * ({@code CleanCommand.java:87-99}). So an <em>active/pending</em> publication workflow whose
- * content was deleted is aborted identically to a terminal one. This pins the bug (and the defensive
- * skips) so the Stage-7 fix (terminal-status gate and/or dry-run) can flip the headline assertion to
- * {@code never().abortProcess(...)}.</p>
+ * <ol>
+ *   <li><b>Status gate</b>: an active/pending/suspended workflow whose target node was deleted is
+ *       <b>NEVER</b> aborted — only a terminal-eligible (Completed/Aborted) ghost may be.</li>
+ *   <li><b>Report-only default</b>: even a terminal-eligible ghost is only <em>logged</em> unless the
+ *       cleaner is constructed in enforce mode.</li>
+ * </ol>
  *
- * <p>Driven against the behaviour-preserving package-private seam
- * {@code CleanCommand.processGhostTasks(JCRSessionWrapper)} — the abort decision is exercised
- * directly with a mocked session + {@code MockedStatic<WorkflowService>}, avoiding the unmockable
- * {@code JCRUserNode}/{@code JCRTemplate.doExecute} chain (which is orthogonal to the abort logic).
- * Stage 7 can promote this seam to a full injectable {@code GhostWorkflowCleaner} collaborator.</p>
+ * <p>The abort decision is driven directly with a mocked session + {@code MockedStatic<WorkflowService>}
+ * and an injected {@link GhostWorkflowCleaner.WorkflowStatusResolver}, avoiding the unmockable
+ * {@code JCRUserNode}/{@code JCRTemplate.doExecute} chain.</p>
  */
 public class CleanCommandGhostWorkflowTest {
 
     private static final String PROVIDER = "jBPM";
     private static final String PROCESS_ID = "42";
     private static final String WORKFLOW_ID = "42";
+
+    private static final int ACTIVE = WorkflowListCommand.WorkflowStatus.STATE_ACTIVE.getValue();
+    private static final int COMPLETED = WorkflowListCommand.WorkflowStatus.STATE_COMPLETED.getValue();
 
     private static WorkflowTask task(String processId) {
         WorkflowTask task = mock(WorkflowTask.class);
@@ -73,9 +76,14 @@ public class CleanCommandGhostWorkflowTest {
         return session;
     }
 
-    // --- HEADLINE: aborts with no status gate when the referenced node is gone ---
+    // Enforce mode + a resolver that reports the given jBPM state.
+    private static GhostWorkflowCleaner enforcing(int state) {
+        return new GhostWorkflowCleaner(false, w -> state);
+    }
+
+    // --- SAFETY HEADLINE: an ACTIVE workflow is NEVER aborted, even when its node is gone. ---
     @Test
-    public void ghostCleanup_abortsWorkflow_withoutAnyStatusCheck_whenNodeDeleted() throws Exception {
+    public void ghostCleanup_doesNotAbortActiveWorkflow_evenWhenNodeDeleted_enforceMode() throws Exception {
         try (MockedStatic<WorkflowService> mw = mockStatic(WorkflowService.class)) {
             WorkflowService ws = mock(WorkflowService.class);
             mw.when(WorkflowService::getInstance).thenReturn(ws);
@@ -86,14 +94,72 @@ public class CleanCommandGhostWorkflowTest {
             when(ws.getWorkflow(PROVIDER, PROCESS_ID, Locale.ENGLISH)).thenReturn(w);
             when(session.getNodeByIdentifier("uuid-1")).thenThrow(new ItemNotFoundException("gone"));
 
-            CleanCommand.processGhostTasks(session);
+            enforcing(ACTIVE).process(session);
 
-            // No status was ever read; abort fires regardless. THIS IS THE BUG.
+            // Status gate protects the active workflow — the old unconditional abort was the bug.
+            verify(ws, never()).abortProcess(any(), any());
+        }
+    }
+
+    // --- Enforce mode + terminal-eligible ghost -> aborted. ---
+    @Test
+    public void ghostCleanup_abortsTerminalEligibleGhost_inEnforceMode() throws Exception {
+        try (MockedStatic<WorkflowService> mw = mockStatic(WorkflowService.class)) {
+            WorkflowService ws = mock(WorkflowService.class);
+            mw.when(WorkflowService::getInstance).thenReturn(ws);
+
+            WorkflowTask task = task(PROCESS_ID);
+            JCRSessionWrapper session = sessionWith(Collections.singletonList(task), ws);
+            Workflow w = workflow(WORKFLOW_ID, Arrays.asList("uuid-1"));
+            when(ws.getWorkflow(PROVIDER, PROCESS_ID, Locale.ENGLISH)).thenReturn(w);
+            when(session.getNodeByIdentifier("uuid-1")).thenThrow(new ItemNotFoundException("gone"));
+
+            enforcing(COMPLETED).process(session);
+
             verify(ws).abortProcess(WORKFLOW_ID, PROVIDER);
         }
     }
 
-    // --- Negative: node still exists -> never abort ---
+    // --- Report-only default: even a terminal-eligible ghost is NOT aborted (only logged). ---
+    @Test
+    public void ghostCleanup_reportOnly_doesNotAbortEvenTerminalEligibleGhost() throws Exception {
+        try (MockedStatic<WorkflowService> mw = mockStatic(WorkflowService.class)) {
+            WorkflowService ws = mock(WorkflowService.class);
+            mw.when(WorkflowService::getInstance).thenReturn(ws);
+
+            WorkflowTask task = task(PROCESS_ID);
+            JCRSessionWrapper session = sessionWith(Collections.singletonList(task), ws);
+            Workflow w = workflow(WORKFLOW_ID, Arrays.asList("uuid-1"));
+            when(ws.getWorkflow(PROVIDER, PROCESS_ID, Locale.ENGLISH)).thenReturn(w);
+            when(session.getNodeByIdentifier("uuid-1")).thenThrow(new ItemNotFoundException("gone"));
+
+            // report-only cleaner, resolver WOULD make it eligible — still must not abort.
+            new GhostWorkflowCleaner(true, w2 -> COMPLETED).process(session);
+
+            verify(ws, never()).abortProcess(any(), any());
+        }
+    }
+
+    // --- The shipped default constructor is report-only + conservative gate (never aborts). ---
+    @Test
+    public void ghostCleanup_defaultConstructor_isSafeAndNeverAborts() throws Exception {
+        try (MockedStatic<WorkflowService> mw = mockStatic(WorkflowService.class)) {
+            WorkflowService ws = mock(WorkflowService.class);
+            mw.when(WorkflowService::getInstance).thenReturn(ws);
+
+            WorkflowTask task = task(PROCESS_ID);
+            JCRSessionWrapper session = sessionWith(Collections.singletonList(task), ws);
+            Workflow w = workflow(WORKFLOW_ID, Arrays.asList("uuid-1"));
+            when(ws.getWorkflow(PROVIDER, PROCESS_ID, Locale.ENGLISH)).thenReturn(w);
+            when(session.getNodeByIdentifier("uuid-1")).thenThrow(new ItemNotFoundException("gone"));
+
+            new GhostWorkflowCleaner().process(session);
+
+            verify(ws, never()).abortProcess(any(), any());
+        }
+    }
+
+    // --- Negative: node still exists -> never abort (even in enforce mode). ---
     @Test
     public void ghostCleanup_doesNotAbort_whenReferencedNodeStillExists() throws Exception {
         try (MockedStatic<WorkflowService> mw = mockStatic(WorkflowService.class)) {
@@ -106,13 +172,13 @@ public class CleanCommandGhostWorkflowTest {
             when(ws.getWorkflow(PROVIDER, PROCESS_ID, Locale.ENGLISH)).thenReturn(w);
             when(session.getNodeByIdentifier("uuid-1")).thenReturn(mock(JCRNodeWrapper.class));
 
-            CleanCommand.processGhostTasks(session);
+            enforcing(COMPLETED).process(session);
 
             verify(ws, never()).abortProcess(any(), any());
         }
     }
 
-    // --- Negative: nodeIds variable missing / not a List -> defensive skip, never abort ---
+    // --- Negative: nodeIds variable missing / not a List -> defensive skip, never abort. ---
     @Test
     public void ghostCleanup_doesNotAbort_whenNodeIdsVariableIsNotAList() throws Exception {
         try (MockedStatic<WorkflowService> mw = mockStatic(WorkflowService.class)) {
@@ -124,13 +190,13 @@ public class CleanCommandGhostWorkflowTest {
             Workflow w = workflow(WORKFLOW_ID, "not-a-list");
             when(ws.getWorkflow(PROVIDER, PROCESS_ID, Locale.ENGLISH)).thenReturn(w);
 
-            CleanCommand.processGhostTasks(session);
+            enforcing(COMPLETED).process(session);
 
             verify(ws, never()).abortProcess(any(), any());
         }
     }
 
-    // --- Resilience: one bad task throws RuntimeException -> the batch continues to the next ---
+    // --- Resilience: one bad task throws RuntimeException -> the batch continues to the next. ---
     @Test
     public void ghostCleanup_continuesBatch_whenOneTaskProcessingThrows() throws Exception {
         try (MockedStatic<WorkflowService> mw = mockStatic(WorkflowService.class)) {
@@ -143,12 +209,12 @@ public class CleanCommandGhostWorkflowTest {
 
             // First task blows up inside processWorkflowTask.
             when(ws.getWorkflow(PROVIDER, PROCESS_ID, Locale.ENGLISH)).thenThrow(new RuntimeException("bad task"));
-            // Second task is a genuine ghost and must still be aborted.
+            // Second task is a terminal-eligible ghost and must still be aborted (enforce mode).
             Workflow goodWf = workflow("99", Arrays.asList("uuid-2"));
             when(ws.getWorkflow(PROVIDER, "99", Locale.ENGLISH)).thenReturn(goodWf);
             when(session.getNodeByIdentifier("uuid-2")).thenThrow(new ItemNotFoundException("gone"));
 
-            CleanCommand.processGhostTasks(session);
+            enforcing(COMPLETED).process(session);
 
             verify(ws, times(1)).abortProcess("99", PROVIDER);
             verify(ws, never()).abortProcess(eq(WORKFLOW_ID), any());

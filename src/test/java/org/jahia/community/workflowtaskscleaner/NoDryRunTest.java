@@ -8,11 +8,14 @@ import java.lang.reflect.Method;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * S30 (G16 / U8) — CHARACTERIZATION: no dry-run / preview exists on any deletion entry point.
+ * S30 (G16 / U8) — the public deletion entry-point signatures carry NO dry-run parameter.
  *
- * <p>Confirms the absence-by-design: none of {@code runClean}, {@code CleanCommand.execute()},
- * {@code CleanCommand.deleteTasks()} or {@code saveConfig} accepts a preview/dry-run parameter or
- * returns a would-delete list. A Stage-7 dry-run would add a parameter/return that flips this.</p>
+ * <p>Confirms that none of {@code runClean}, {@code CleanCommand.execute()},
+ * {@code CleanCommand.deleteTasks()} or {@code saveConfig} takes a preview/dry-run parameter or
+ * returns a would-delete list. <b>Stage-7 note (U2):</b> the report-only/dry-run mode for
+ * ghost-workflow abort was added <em>without</em> changing these signatures — it is driven by the
+ * {@code abortGhostWorkflows} OSGi configuration flag (default false = report-only) and the
+ * {@link GhostWorkflowCleaner} collaborator, so this contract deliberately still holds.</p>
  */
 public class NoDryRunTest {
 

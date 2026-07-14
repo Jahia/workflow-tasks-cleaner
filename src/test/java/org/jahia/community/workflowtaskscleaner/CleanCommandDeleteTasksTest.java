@@ -4,12 +4,15 @@ import org.jahia.services.content.JCRTemplate;
 import org.jahia.services.usermanager.JahiaUser;
 import org.jahia.settings.SettingsBean;
 import org.jahia.utils.DatabaseUtils;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.mockito.MockedStatic;
 
 import java.lang.reflect.Field;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.CALLS_REAL_METHODS;
@@ -36,6 +39,16 @@ public class CleanCommandDeleteTasksTest {
         Field f = CleanCommand.class.getDeclaredField("SQL_STMTS");
         f.setAccessible(true);
         return (List<String>) f.get(null);
+    }
+
+    @Before
+    @After
+    public void resetGuard() throws Exception {
+        // Stage-7 (U3): deleteTasks() now acquires the shared IS_RUNNING guard; reset it so a
+        // leaked flag from another test can't make deleteTasks() short-circuit here.
+        Field f = CleanCommand.class.getDeclaredField("IS_RUNNING");
+        f.setAccessible(true);
+        ((AtomicBoolean) f.get(null)).set(false);
     }
 
     // --- S9: processing server -> SQL + ghost phase run once ---

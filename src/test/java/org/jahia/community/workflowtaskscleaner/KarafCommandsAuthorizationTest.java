@@ -16,9 +16,15 @@ import static org.assertj.core.api.Assertions.assertThat;
  *
  * <p>The three shell commands ({@code clean}, {@code list}, {@code task}) invoke the same
  * destructive deletion behind shell access only, with zero Jahia permission check — in stark
- * contrast to the GraphQL fields, which are ALL {@code @GraphQLRequiresPermission("admin")}.
- * Also pins the copy-paste bug: {@link WorkflowTaskCommand}'s {@code @Command} description wrongly
- * says "List all current workflow tasks" although it fixes/deletes (flagged for the Stage-7 fix).</p>
+ * contrast to the GraphQL fields, which are ALL {@code @GraphQLRequiresPermission("admin")}.</p>
+ *
+ * <p><b>Stage-7 (U9) decision:</b> the Karaf console is a trusted-admin-only surface (a caller has
+ * already authenticated into the Karaf shell / SSH), and there is no per-invocation Jahia caller
+ * identity to gate on — consistent with the support-token and versions-cleaner modules. So the gap
+ * is DOCUMENTED rather than "fixed" by bolting on a fake gate; {@code noKarafCommand_carries...} is
+ * kept as a tripwire that fails if someone later adds an ineffective annotation. The genuine bug
+ * that IS fixed here is the copy-pasted {@code @Command} description on {@link WorkflowTaskCommand}
+ * (asserted by {@code workflowTaskCommand_hasAccurateDescription}).</p>
  */
 public class KarafCommandsAuthorizationTest {
 
@@ -65,10 +71,13 @@ public class KarafCommandsAuthorizationTest {
     }
 
     @Test
-    public void workflowTaskCommand_hasTheWrongCopyPasteDescription() {
-        // Bug characterization: the description is copied from the 'list' command but 'task' fixes/deletes.
-        // Stage-7 must correct this description (WorkflowTaskCommand.java:47).
+    public void workflowTaskCommand_hasAccurateDescription() {
+        // Stage-7 (U9) fix: the description previously copy-pasted from 'list' ("List all current
+        // workflow tasks") is corrected to describe what 'task' actually does (inspect/fix/delete).
         Command cmd = WorkflowTaskCommand.class.getAnnotation(Command.class);
-        assertThat(cmd.description()).isEqualTo("List all current workflow tasks");
+        assertThat(cmd.description())
+                .isNotEqualTo("List all current workflow tasks")
+                .containsIgnoringCase("delete")
+                .containsIgnoringCase("fix");
     }
 }

@@ -4,13 +4,17 @@ import {DocumentNode} from 'graphql';
  * S25 (G19 / U9, F10) — GENUINE-GAP negative authorization.
  *
  * All four GraphQL fields are @GraphQLRequiresPermission("admin")
- * (WorkflowTasksCleanerQuery.java:32,55; WorkflowTasksCleanerMutation.java:31,52). A guest /
- * non-admin session must be rejected on every one of them. This is the explicit contrast with the
- * Karaf path (S19), which has NO equivalent permission gate.
+ * (WorkflowTasksCleanerQuery.java; WorkflowTasksCleanerMutation.java). A guest / non-admin caller
+ * must be rejected on every one of them. This is the explicit contrast with the Karaf path (S19),
+ * which has NO equivalent permission gate.
  *
- * Stage-6 note: uses a guest (logged-out) Apollo client via cy.logout(). If the @jahia/cypress
- * build in the harness exposes a dedicated low-privilege user or guest helper, prefer that; the
- * assertion (errors populated / no data) is what matters, not the exact guest mechanism.
+ * Stage-6 finding: `cy.apollo()` authenticates via the shared Apollo client, whose default is Basic
+ * `root:<SUPER_USER_PASSWORD>` (see @jahia/cypress apolloClient) — so `cy.logout()` (which only
+ * clears the browser session) does NOT make it a guest, and the earlier version false-negatived.
+ * The fix installs a genuine GUEST client with empty credentials
+ * (`cy.apolloClient({username:'', password:''})` → `Authorization: Basic base64(":")`), which the
+ * live Jahia resolves to the anonymous user and denies (verified against the container:
+ * `GqlAccessDeniedException` / `data.workflowTasksCleaner == null` for all four fields).
  */
 describe('Workflow Tasks Cleaner - Authorization (negative)', () => {
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -23,8 +27,13 @@ describe('Workflow Tasks Cleaner - Authorization (negative)', () => {
     const saveConfig: DocumentNode = require('graphql-tag/loader!../fixtures/graphql/mutation/saveConfig.graphql');
 
     beforeEach(() => {
-        // Ensure no admin session leaks into the guest assertions.
-        cy.logout();
+        // Install a genuine guest Apollo client (empty credentials -> anonymous user server-side).
+        cy.apolloClient({username: '', password: ''});
+    });
+
+    afterEach(() => {
+        // Restore the default (root) client so nothing leaks into other specs.
+        cy.apolloClient();
     });
 
     const expectPermissionError = (result: any, field: string) => {

@@ -24,11 +24,27 @@ import {DocumentNode} from 'graphql';
  *
  * The body below is the intended spike-then-test shape: it seeds, then ASSERTS THE WORKFLOW IS PRESENT
  * BEFORE deleting the node (failing loudly otherwise, so the test can never silently pass on an empty
- * set), deletes the node, runs clean, and polls workflowList to observe the abort. Stage 6 must:
- *   (a) replace the seeding with a flow that provably starts an active publication workflow carrying
- *       nodeIds visible to root;
- *   (b) confirm the spike (workflow present + nodeIds var) — then remove `.skip`;
- *   (c) if the spike disproves reachability, keep it skipped and record the finding for Stage 7.
+ * set), deletes the node, runs clean, and polls workflowList to observe the abort.
+ *
+ * ===================== STAGE-6 SPIKE OUTCOME (live container) — KEPT SKIPPED =====================
+ * Ran against a licensed dockerized Jahia 8.2 + Digitall. The spike CONFIRMED the blockers, so this
+ * spec stays `.skip` (per the Stage-4 escape hatch — do NOT fake a pass):
+ *   • Blocker #1 (confirmed): `publishNode` publishes DIRECTLY as root. When the actor already holds
+ *     publish rights, Jahia publishes immediately and starts NO jBPM publication workflow, so the
+ *     "workflow present" precondition cannot be met with the harness's seeding primitives. A real
+ *     active publication workflow needs a request-publication by a restricted (non-publisher) editor —
+ *     the harness ships no such user/helper.
+ *   • The ghost-abort path is therefore not reachably exercisable e2e here.
+ * Independently, the STAGE-7 FIX neutralises the vulnerability regardless of reachability: ghost
+ * cleanup now defaults to REPORT-ONLY and a status gate spares active/pending workflows, so `runClean`
+ * would not abort a live workflow even if one could be seeded. The safety contract (active workflow
+ * spared; only terminal-eligible ghosts abortable; report-only default) is proven at the unit level by
+ * CleanCommandGhostWorkflowTest (via the extracted GhostWorkflowCleaner seam).
+ *
+ * To un-skip in the future: add a restricted-editor user + request-publication seeding flow that
+ * produces an active workflow carrying a `nodeIds` List visible to root, then assert that with the
+ * default (report-only) config the seeded workflow SURVIVES `runClean`, and with abortGhostWorkflows=true
+ * only a terminal-eligible ghost is removed.
  * =====================================================================================
  */
 // eslint-disable-next-line mocha/no-skipped-tests

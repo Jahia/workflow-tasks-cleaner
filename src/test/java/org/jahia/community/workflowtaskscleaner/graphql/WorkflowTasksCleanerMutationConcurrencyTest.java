@@ -1,5 +1,6 @@
 package org.jahia.community.workflowtaskscleaner.graphql;
 
+import org.jahia.community.workflowtaskscleaner.CleanCommand;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -23,7 +24,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 public class WorkflowTasksCleanerMutationConcurrencyTest {
 
     private static AtomicBoolean isRunning() throws Exception {
-        Field f = WorkflowTasksCleanerMutation.class.getDeclaredField("IS_RUNNING");
+        // Stage-7 (U3): the shared guard moved to CleanCommand so ALL entry points honour it.
+        Field f = CleanCommand.class.getDeclaredField("IS_RUNNING");
         f.setAccessible(true);
         return (AtomicBoolean) f.get(null);
     }

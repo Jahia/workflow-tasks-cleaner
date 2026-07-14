@@ -15,7 +15,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.Dictionary;
 import java.util.Hashtable;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 @GraphQLName("WorkflowTasksCleanerMutation")
 @GraphQLDescription("Workflow Tasks Cleaner mutations")
@@ -23,14 +22,16 @@ public class WorkflowTasksCleanerMutation {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(WorkflowTasksCleanerMutation.class);
     private static final String CONFIG_PID = "org.jahia.community.workflowtaskscleaner";
-    private static final AtomicBoolean IS_RUNNING = new AtomicBoolean(false);
 
     @GraphQLField
     @GraphQLName("runClean")
     @GraphQLDescription("Triggers the cleanup of exited/completed workflow tasks asynchronously. Returns false if a clean is already running.")
     @GraphQLRequiresPermission("admin")
     public Boolean runClean() {
-        if (!IS_RUNNING.compareAndSet(false, true)) {
+        // U3 — the real mutual-exclusion CAS now lives inside CleanCommand.deleteTasks() so every
+        // entry point honours it. Here we only peek to give the caller immediate feedback; the
+        // worker's deleteTasks() acquires/releases the shared guard.
+        if (CleanCommand.isRunning()) {
             LOGGER.info("Workflow tasks cleaner run requested but already running");
             return Boolean.FALSE;
         }
@@ -39,8 +40,6 @@ public class WorkflowTasksCleanerMutation {
                 CleanCommand.deleteTasks();
             } catch (Exception e) {
                 LOGGER.error("Failed to run workflow tasks cleaner", e);
-            } finally {
-                IS_RUNNING.set(false);
             }
         }).start();
         return Boolean.TRUE;

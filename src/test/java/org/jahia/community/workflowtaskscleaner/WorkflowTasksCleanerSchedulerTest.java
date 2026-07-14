@@ -1,5 +1,6 @@
 package org.jahia.community.workflowtaskscleaner;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -44,10 +45,30 @@ public class WorkflowTasksCleanerSchedulerTest {
         f.set(scheduler, quartz);
     }
 
+    @After
+    public void resetAbortFlag() {
+        CleanCommand.setAbortGhostWorkflows(false);
+    }
+
     private static WorkflowTasksCleanerScheduler.Config config(String cron) {
+        return config(cron, false);
+    }
+
+    private static WorkflowTasksCleanerScheduler.Config config(String cron, boolean abortGhostWorkflows) {
         WorkflowTasksCleanerScheduler.Config config = mock(WorkflowTasksCleanerScheduler.Config.class);
         when(config.cronExpression()).thenReturn(cron);
+        when(config.abortGhostWorkflows()).thenReturn(abortGhostWorkflows);
         return config;
+    }
+
+    // --- U2: the report-only/enforce toggle is propagated to CleanCommand on activate/@Modified ---
+    @Test
+    public void activate_propagatesAbortGhostWorkflowsToggle_toCleanCommand() {
+        scheduler.activate(config("0 0 4 * * ?", true));
+        assertThat(CleanCommand.isAbortGhostWorkflows()).as("enforce mode wired").isTrue();
+
+        scheduler.activate(config("0 0 4 * * ?", false));
+        assertThat(CleanCommand.isAbortGhostWorkflows()).as("report-only mode wired").isFalse();
     }
 
     // --- S4: reschedule on every activate/@Modified, no restart ---
