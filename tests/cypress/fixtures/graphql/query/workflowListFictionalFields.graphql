@@ -1,0 +1,11 @@
+# S23 / D2 negative fixture: GqlWorkflowTask exposes ONLY id/name/type/title.
+# The documented per-task fields processId/assignee/dueDate are fiction — MUST fail validation.
+query {
+    workflowTasksCleaner {
+        workflowList {
+            processId
+            assignee
+            dueDate
+        }
+    }
+}

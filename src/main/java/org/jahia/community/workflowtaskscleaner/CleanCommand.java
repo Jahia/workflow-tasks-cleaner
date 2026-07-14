@@ -66,22 +66,34 @@ public class CleanCommand implements Action {
         }
     }
     
-    private static void cleanGhostWorkflows() throws RepositoryException {
-	JCRTemplate.getInstance().doExecute(JahiaUserManagerService.getInstance().lookupRootUser().getJahiaUser(), "default", Locale.ENGLISH,
+    static void cleanGhostWorkflows() throws RepositoryException {
+	JCRTemplate.getInstance().doExecute(lookupRootJahiaUser(), "default", Locale.ENGLISH,
 			new JCRCallback<Object>() {
 				public Object doInJCR(JCRSessionWrapper session) throws RepositoryException {
-			    	JahiaUser user = session.getUser();
-			        List<WorkflowTask> tasks = WorkflowService.getInstance().getTasksForUser(user, Locale.ENGLISH);
-			        for (WorkflowTask task : tasks) {
-			                try {
-			                    processWorkflowTask(task, session);
-			                } catch (RuntimeException e) { // skip one bad task; a checked RepositoryException (dead session) propagates to abort the batch
-			                    LOGGER.warn("Skipping task {}: processing failed", task.getId(), e);
-			                }
-			        }
+			        processGhostTasks(session);
 					return null;
 				}
 			});
+    }
+
+    // Package-private seam: isolates the root-user resolution so the ghost-cleanup phase can be
+    // exercised without mocking the (unmockable) JCRUserNode returned by lookupRootUser().
+    static JahiaUser lookupRootJahiaUser() {
+        return JahiaUserManagerService.getInstance().lookupRootUser().getJahiaUser();
+    }
+
+    // Package-private seam: the ghost-cleanup loop, decoupled from JCR session opening so it can be
+    // unit-tested directly against a mocked JCRSessionWrapper + WorkflowService (see S13).
+    static void processGhostTasks(JCRSessionWrapper session) throws RepositoryException {
+        JahiaUser user = session.getUser();
+        List<WorkflowTask> tasks = WorkflowService.getInstance().getTasksForUser(user, Locale.ENGLISH);
+        for (WorkflowTask task : tasks) {
+            try {
+                processWorkflowTask(task, session);
+            } catch (RuntimeException e) { // skip one bad task; a checked RepositoryException (dead session) propagates to abort the batch
+                LOGGER.warn("Skipping task {}: processing failed", task.getId(), e);
+            }
+        }
     }
 
     private static void processWorkflowTask(WorkflowTask task, JCRSessionWrapper session) throws RepositoryException {

@@ -1,0 +1,9 @@
+# S23 / D2 negative fixture: workflowList takes NO arguments and there is no taskState enum.
+# The documented `workflowList(taskState: ESCALATED)` is fiction — this MUST fail schema validation.
+query {
+    workflowTasksCleaner {
+        workflowList(taskState: ESCALATED) {
+            id
+        }
+    }
+}
