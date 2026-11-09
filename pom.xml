@@ -69,6 +69,18 @@
             <version>3.27.7</version>
             <scope>test</scope>
         </dependency>
+        <!--
+            Mockito 5.x: its default mock-maker is inline, which provides MockedStatic for the
+            Jahia singletons under test (SettingsBean, DatabaseUtils, JCRTemplate, WorkflowService,
+            JahiaUserManagerService, BundleUtils). Do NOT add mockito-inline: that separate artifact
+            is 4.x-only; on 5.x inline is the default. Stays on JUnit 4 to match the repo.
+        -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <version>5.14.2</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -119,6 +131,26 @@
                         <_metatypeannotations>*</_metatypeannotations>
                     </instructions>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
     </build>

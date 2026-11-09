@@ -33,13 +33,16 @@ public class WorkflowTasksCleanerScheduler {
     @Activate
     @Modified
     public void activate(Config config) {
+        // U2 — propagate the report-only/enforce toggle to the ghost-workflow cleanup.
+        CleanCommand.setAbortGhostWorkflows(config.abortGhostWorkflows());
         try {
             if (!unscheduleExistingJob()) {
                 LOGGER.warn("Could not unschedule existing job, skipping reschedule");
                 return;
             }
             scheduleJob(config.cronExpression());
-            LOGGER.info("Workflow tasks cleaner job scheduled");
+            LOGGER.info("Workflow tasks cleaner job scheduled (ghost-workflow abort mode: {})",
+                    config.abortGhostWorkflows() ? "ENFORCE" : "REPORT-ONLY");
         } catch (SchedulerException | ParseException e) {
             LOGGER.error("Failed to schedule workflow tasks cleaner job", e);
         }
@@ -84,5 +87,11 @@ public class WorkflowTasksCleanerScheduler {
 
         @AttributeDefinition(name = "Cron expression", description = "Cron expression for the cleanup job")
         String cronExpression() default DEFAULT_CRON_EXPRESSION;
+
+        @AttributeDefinition(name = "Abort ghost workflows", description = "When true, ghost-workflow "
+                + "cleanup ABORTS terminal-eligible workflows whose target nodes were deleted. When "
+                + "false (default), it runs in report-only mode and only logs what would be aborted, "
+                + "so the scheduled job never silently aborts a workflow.")
+        boolean abortGhostWorkflows() default false;
     }
 }

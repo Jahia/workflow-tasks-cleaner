@@ -44,7 +44,7 @@ import java.util.Locale;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@Command(scope = "workflow-cleaner", name = "task", description = "List all current workflow tasks")
+@Command(scope = "workflow-cleaner", name = "task", description = "Inspect, fix (--fix) or delete (--delete) a single workflow task by id")
 @Service
 public class WorkflowTaskCommand implements Action {
 

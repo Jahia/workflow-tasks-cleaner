@@ -10,78 +10,85 @@ A Jahia 8.2 module that automatically cleans exited or completed workflow tasks 
 
 ## Configuration
 
-The cleaner runs on a Quartz cron schedule. After installing/updating the module, a default configuration is applied:
+The cleaner runs on a Quartz cron schedule. After installing/updating the module, a default configuration is applied (OSGi PID `org.jahia.community.workflowtaskscleaner`):
 
 | Property | Default | Description |
 |---|---|---|
 | `cronExpression` | `0 30 2 * * ?` | Quartz cron expression for the scheduled cleanup (default: 2:30 AM daily) |
+| `abortGhostWorkflows` | `false` | Ghost-workflow cleanup mode. `false` = **report-only** (the default): the job only logs the workflows it *would* abort. `true` = **enforce**: terminal-eligible ghost workflows whose target nodes were deleted are aborted. In-progress (Active/Pending/Suspended) workflows are **never** aborted, in either mode. |
 
-To change the schedule, edit the OSGi configuration in the OSGi console or via GraphQL (see below).
+To change the schedule (or the `abortGhostWorkflows` mode), edit the OSGi configuration in the OSGi console or, for the cron expression, via GraphQL (see below). A change is applied immediately — **no module restart is required** (the job is auto-rescheduled and the mode re-read on configuration update).
+
+> **Safety note:** ghost-workflow cleanup ships in report-only mode so the unattended nightly job never silently aborts a workflow. Review the log entries it emits, then set `abortGhostWorkflows=true` only if you want enforcement.
 
 ## Usage
 
 ### GraphQL API
 
-The module exposes a GraphQL API under the `WorkflowTasksCleanerQuery` and `WorkflowTasksCleanerMutations` extensions.
+All operations are grouped under a single `workflowTasksCleaner` namespace on the root `Query` and
+`Mutation` types. Every field requires the `admin` permission (`@GraphQLRequiresPermission("admin")`);
+a non-admin session is rejected.
 
 #### Queries
 
-##### `workflowTasksCleanerConfig`
+##### `config`
 
-Returns the current scheduler configuration (cron expression).
+Returns the current scheduler configuration. The only field is `cronExpression`.
 
 ```graphql
 query {
-  workflowTasksCleanerConfig {
-    cronExpression
-    isRunning
-    tasksScanned
-    tasksDeleted
-    tasksFixed
+  workflowTasksCleaner {
+    config {
+      cronExpression
+    }
   }
 }
 ```
 
-##### `workflowTasksCleanerWorkflowList`
+##### `workflowList`
 
-Lists workflow tasks with optional state filter.
+Lists the workflow instances currently in the system. Takes **no arguments**. Each entry exposes
+exactly four fields.
 
 ```graphql
 query {
-  workflowTasksCleanerWorkflowList(taskState: ESCALATED) {
-    taskId
-    taskName
-    taskState
-    processId
-    processSubject
-    assignee
-    createdDate
-    dueDate
+  workflowTasksCleaner {
+    workflowList {
+      id     # workflow instance id
+      name   # workflow name
+      type   # workflow definition display name
+      title  # associated JCR title (may be null)
+    }
   }
 }
 ```
-
-`taskState` values: `PENDING`, `IN_PROGRESS`, `COMPLETED`, `CANCELLED`, `EXITED`, `ESCALATED`, `SUSPENDED`, `OBSOLETE`
 
 #### Mutations
 
-##### `workflowTasksCleanerRunClean`
+##### `runClean`
 
-Triggers an immediate cleanup of exited/completed tasks. Returns `false` if a clean is already running.
+Triggers an asynchronous cleanup of exited/completed tasks (and the ghost-workflow pass). Returns
+`true` when the run was started, or `false` if a clean is already running on this node. Because the
+work runs on a background thread, `true` means "accepted", not "finished".
 
 ```graphql
 mutation {
-  workflowTasksCleanerRunClean
+  workflowTasksCleaner {
+    runClean
+  }
 }
 ```
 
-##### `workflowTasksCleanerSaveConfig`
+##### `saveConfig`
 
-Saves a new cron expression for the scheduled job. **A module restart is required for schedule changes to take effect.**
+Saves a new cron expression for the scheduled job. Returns `true` on success, `false` if the
+expression is invalid. The job is **rescheduled automatically** — no module restart is required.
 
 ```graphql
 mutation {
-  workflowTasksCleanerSaveConfig(cronExpression: "0 0 3 * * ?")
+  workflowTasksCleaner {
+    saveConfig(cronExpression: "0 0 3 * * ?")
+  }
 }
 ```
 
@@ -128,29 +135,29 @@ mvn clean install
 ```
 workflow-tasks-cleaner/
 ├── src/main/java/org/jahia/community/workflowtaskscleaner/
-│   ├── WorkflowTasksCleanerScheduler.java    # Quartz OSGi scheduler
-│   ├── CleanCommand.java                     # Main cleanup logic (Karaf)
-│   ├── WorkflowListCommand.java             # List command (Karaf)
-│   ├── WorkflowTaskCommand.java              # Task command (Karaf)
-│   ├── graphql/
-│   │   ├── WorkflowTasksCleanerGraphQLExtensionsProvider.java  # Schema provider
-│   │   ├── WorkflowTasksCleanerQueryExtension.java            # GraphQL queries
-│   │   ├── WorkflowTasksCleanerMutationExtension.java         # GraphQL mutations
-│   │   └── model/
-│   │       ├── GqlConfig.java               # Config data model
-│   │       └── GqlWorkflowTask.java         # Workflow task data model
-│   └── package-info.java
+│   ├── WorkflowTasksCleanerScheduler.java    # Quartz OSGi scheduler (cron + abortGhostWorkflows toggle)
+│   ├── CleanCommand.java                      # Main cleanup logic + shared concurrency guard (Karaf `clean`)
+│   ├── CleanBackgroundJob.java                # Quartz job -> CleanCommand.deleteTasks()
+│   ├── GhostWorkflowCleaner.java              # Ghost-workflow pass: status gate + report-only/enforce mode
+│   ├── WorkflowListCommand.java               # Karaf `list` command (+ WorkflowStatus enum)
+│   └── WorkflowTaskCommand.java               # Karaf `task` command (inspect/--fix/--delete)
+│   └── graphql/
+│       ├── WorkflowTasksCleanerGraphQLExtensionsProvider.java  # DXGraphQLExtensionsProvider registration
+│       ├── WorkflowTasksCleanerQueryExtension.java             # Adds the `workflowTasksCleaner` Query namespace
+│       ├── WorkflowTasksCleanerMutationExtension.java          # Adds the `workflowTasksCleaner` Mutation namespace
+│       ├── WorkflowTasksCleanerQuery.java                      # `config`, `workflowList`
+│       ├── WorkflowTasksCleanerMutation.java                   # `runClean`, `saveConfig`
+│       ├── GqlConfig.java                                      # config payload (cronExpression only)
+│       └── GqlWorkflowTask.java                               # workflow payload (id/name/type/title)
 ├── src/main/resources/
 │   ├── META-INF/
-│   │   ├── configurations/                  # Default OSGi config
-│   │   ├── definitions/                     # CND node type definitions
-│   │   └── OSGI-INF/
-│   │       └── blueprint/                   # (empty - using OSGi DS)
-│   └── javascript/
-│       └── WorkflowTasksCleaner/
-│           ├── WorkflowTasksCleaner.jsx     # Main admin component
-│           ├── SchedulerConfig.jsx         # Scheduler config component
-│           ├── WorkflowTasksCleaner.gql.js  # GraphQL queries/mutations
-│           └── SCSS/
+│   │   ├── configurations/                    # Default OSGi config (.cfg, non-overridable)
+│   │   └── definitions.cnd                    # Namespace prefixes only — NO custom node types
+│   └── javascript/WorkflowTasksCleaner/       # React admin UI (Moonstone)
 └── pom.xml
 ```
+
+> Note: the GraphQL operations live in `WorkflowTasksCleanerQuery`/`WorkflowTasksCleanerMutation`;
+> the `*Extension` classes only register the single `workflowTasksCleaner` namespace field on the
+> root `Query`/`Mutation`. There is no `graphql/model/` package. The module defines **no** custom
+> JCR node types — `definitions.cnd` declares only the `jnt`/`jmix` namespace prefixes.
